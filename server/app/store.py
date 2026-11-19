@@ -46,7 +46,9 @@ def next_lamport() -> int:
 
 
 def _member(msg: dict) -> str:
-    return f"{msg['origin']}|{msg['id']}"  # el desempate por origin sale del orden lexicográfico
+    # Desempate por origin = orden lexicográfico (bytes) del miembro del zset. El separador debe ser MENOR que
+    # cualquier carácter de un origin; con "|" el orden era incorrecto ("g10" quedaba antes que "g1").
+    return f"{msg['origin']}\x00{msg['id']}"
 
 
 def save_local(msg: dict) -> bool:
@@ -73,10 +75,13 @@ def receive(msg: dict, via: str) -> bool:
 
 
 def history_since(since: int) -> list:
-    members = r.zrangebyscore(K_HISTORY, f"({since}", "+inf")
+    """since <= 0: todo el historial (incluye lamport 0). since > 0: lamport estrictamente mayor (API nuestra)."""
+    lo = "-inf" if since <= 0 else f"({since}"
+    members = r.zrangebyscore(K_HISTORY, lo, "+inf")
     if not members:
         return []
-    ids = [m.rsplit("|", 1)[1] for m in members]
+    # Tolera miembros del formato antiguo "origin|id" (datos de versiones previas del laboratorio).
+    ids = [m.rsplit("\x00", 1)[-1] if "\x00" in m else m.rsplit("|", 1)[-1] for m in members]
     return [json.loads(x) for x in r.hmget(K_MESSAGES, ids)]
 
 

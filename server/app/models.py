@@ -3,7 +3,9 @@ import uuid
 from pydantic import (BaseModel, ConfigDict, Field, StrictInt, StrictStr,
                       field_validator, model_validator)
 
-MAX_LAMPORT = 2**53  # precisión exacta del puntaje (double) de Redis: decisión nuestra
+# Decisión nuestra: max+1 debe ser exacto en doble precisión (el script Lua de Redis calcula con doubles).
+# 2**53 + 1 no es representable (float(2**53 + 1) == float(2**53)), así que el tope es 2**53 - 2.
+MAX_LAMPORT = 2**53 - 2
 
 
 class IncomingMessage(BaseModel):

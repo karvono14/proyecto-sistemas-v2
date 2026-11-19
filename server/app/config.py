@@ -35,3 +35,7 @@ REGISTER_INTERVAL = optional_env("REGISTER_INTERVAL", 30.0, float)  # s entre re
 HISTORY_TIMEOUT = optional_env("HISTORY_TIMEOUT", 30.0, float)    # s, GET /history
 BACKOFF_INITIAL = optional_env("BACKOFF_INITIAL", 0.5, float)     # s
 BACKOFF_CAP = optional_env("BACKOFF_CAP", 8.0, float)             # s
+
+# SOLO para el experimento (grupo de control). Debe quedar en "true" en el entregable:
+# con "false" se incumple el requisito 9 (recuperación de historial).
+HISTORY_SYNC = optional_env("HISTORY_SYNC", "true", str).strip().lower() in ("1", "true", "yes", "on")

@@ -1,3 +1,6 @@
+# Laboratorio local: central SIMULADO + dos grupos (gSPAa, gSPAb), cada uno con su Redis.
+# Redes: "front" (central y servidores) y "back-a"/"back-b" (servidor <-> su Redis).
+# Separar "front" permite aislar un servidor del central (partición) sin cortarle el acceso a su Redis.
 x-redis: &redis
   image: redis:7-alpine
   command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
@@ -15,26 +18,33 @@ x-server: &server
 services:
   central:
     build: ./mock_central
+    environment:
+      FORWARD_WORKERS: ${FORWARD_WORKERS:-32}   # hilos con que el central simulado reenvía
     ports: ["9000:9000"]
+    networks: [front]
 
   redis-a:
     <<: *redis
     volumes: ["redis-a-data:/data"]
+    networks: [back-a]
   server-a:
     <<: *server
     environment:
       <<: *server-env
       GROUP_NAME: gSPAa
-      PUBLIC_URL: http://server-a:8000
+      HISTORY_SYNC: ${HISTORY_SYNC:-true}   # solo el experimento lo pone en false
+      PUBLIC_URL: ${PUBLIC_URL_A:-http://server-a:8000}
       REDIS_URL: redis://redis-a:6379/0
     depends_on:
       redis-a: {condition: service_healthy}
       central: {condition: service_started}
     ports: ["8000:8000"]
+    networks: [front, back-a]
 
   redis-b:
     <<: *redis
     volumes: ["redis-b-data:/data"]
+    networks: [back-b]
   server-b:
     <<: *server
     environment:
@@ -46,6 +56,12 @@ services:
       redis-b: {condition: service_healthy}
       central: {condition: service_started}
     ports: ["8001:8000"]
+    networks: [front, back-b]
+
+networks:
+  front:
+  back-a:
+  back-b:
 
 volumes:
   redis-a-data:

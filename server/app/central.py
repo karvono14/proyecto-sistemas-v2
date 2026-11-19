@@ -15,7 +15,7 @@ _stop = threading.Event()
 
 # Estado del central visto desde aquí. Arranca "caído" hasta el primer health OK:
 # así el arranque y la vuelta de una caída siguen EXACTAMENTE el mismo camino.
-state = {"down": True, "needs_sync": True}
+state = {"down": True, "needs_sync": config.HISTORY_SYNC}
 
 
 def _url(path: str) -> str:
@@ -88,14 +88,19 @@ def supervisor():
         try:
             alive, why = central_alive()
             if alive:
-                fails = 0
-                if state["down"]:
+                had_fails, fails = fails, 0
+                if state["down"] or had_fails:
+                    # También con fallos cortos (< HEALTH_FAILURES): un reinicio rápido del central pudo
+                    # borrar el registro y hacernos perder mensajes sin que llegáramos a declararlo caído.
+                    if state["down"]:
+                        log.info("CENTRAL_UP")
+                    else:
+                        log.info("CENTRAL_RECOVERED tras %d fallo(s) corto(s): se re-registra y recupera historial", had_fails)
                     state["down"] = False
-                    log.info("CENTRAL_UP")
                     # El central pudo perder el registro: registrarse de nuevo y reintentar lo pendiente.
                     last_register = time.time() if register() else 0.0
                     store.outbox_release_all()
-                    state["needs_sync"] = True
+                    state["needs_sync"] = config.HISTORY_SYNC
                 elif time.time() - last_register >= config.REGISTER_INTERVAL:
                     last_register = time.time() if register() else 0.0  # renovación periódica
                 if state["needs_sync"] and sync_history():
@@ -161,6 +166,8 @@ def sender():
 
 
 def start() -> None:
+    if not config.HISTORY_SYNC:
+        log.warning("HISTORY_SYNC=false: recuperación de historial DESACTIVADA (solo para el experimento)")
     for fn in (supervisor, sender):
         threading.Thread(target=fn, name=fn.__name__, daemon=True).start()
 

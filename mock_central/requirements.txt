@@ -1,3 +1,5 @@
-fastapi==0.115.*
-uvicorn[standard]==0.32.*
-requests==2.32.*
+fastapi==0.115.14
+starlette==0.46.2
+pydantic==2.14.3
+uvicorn[standard]==0.32.1
+requests==2.32.5
