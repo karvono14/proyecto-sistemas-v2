@@ -19,3 +19,4 @@ E7,"Agotamiento de recursos: disco lleno, memoria limitada, descriptores",2026-1
 F2,"docker compose restart: usuarios, historial y reloj sobreviven",2026-11-19T15:05:11Z,PASS,5.0,"reinicio_del_equipo=manual: reiniciar el equipo, `docker compose up -d` y repetir las comprobaciones",
 E2,Ráfaga de 10 000 mensajes: errores y convergencia en gSPAb,2026-11-19T15:34:15Z,INFO,51.0,enviados_ok=10000 errores=0 segundos_envio=15.4 tasa_msg_s=649.6 p95_ms=84.7 convergencia_tras_envio_s=35.3,
 E2,Ráfaga de 10 000 mensajes: errores y convergencia en gSPAb,2026-11-19T15:40:29Z,INFO,56.3,enviados_ok=10000 errores=0 segundos_envio=16.7 tasa_msg_s=600.6 p95_ms=91.4 convergencia_tras_envio_s=39.09,
+E4,Muchos usuarios locales y clientes simultáneos,2026-11-19T16:15:12Z,ERROR,2.3,,RuntimeError: http://localhost:8000 no responde /api/status

@@ -1,8 +1,7 @@
 # Pruebas y límites de la aplicación (grupo gSPAa) — categorías A a G
 
-> **Estado:** pruebas A–D ejecutadas en el laboratorio local; ninguna dio FAIL. Queda **sin datos A1**
-> (manual, falta el script oficial). La columna **Esperado** conserva la hipótesis original;
-> **Observado** resume lo medido. Las categorías E–G (abajo) **no se han ejecutado**: su columna Observado está en blanco. La categoría H (sesión de clase) se sustituye por `tests/sesion_local.py` y `docs/BITACORA.md`.
+> **Estado:** pruebas A–G ejecutadas en el laboratorio local; ninguna con FAIL abierto (E6 falló una vez por la propia prueba y pasó al repetirla). Quedan **sin datos**: A1 (falta el script oficial), el reinicio del equipo de F2, la parte de descriptores y de disco lleno de E7. La columna **Esperado** conserva la hipótesis original;
+> **Observado** resume lo medido. La categoría H (sesión de clase) se sustituye por `tests/sesion_local.py` y `docs/BITACORA.md`.
 >
 > **Ojo con el origen de los datos:** el laboratorio local usa un **central simulado** escrito por nosotros
 > (`mock_central/`). Un resultado obtenido ahí vale para el simulado, no para el central del profesor. Pasar estas
@@ -483,7 +482,7 @@ B2/C1 existen para confirmar el comportamiento en el sistema real.
 | Precondiciones | Central simulado arriba. |
 | Pasos | `python tests/run_tests.py E6` — fuerza 503 durante 75 s y lee los `SEND_RETRY`. |
 | Esperado (hipótesis) | ≥ 8 reintentos, esperas ≤ 8 s, el mensaje sigue en el outbox y se entrega 1 vez al quitar el 503. No existe un número máximo de reintentos. |
-| Observado | **FAIL en la corrida** (aserción del conteo de `outbox`). Lo observado: 21 reintentos en 75 s, espera máxima 7,68 s (≤ tope 8 s: **backoff acotado, cumple**), y tras quitar el 503 el mensaje se entregó **una sola vez** (esas aserciones pasaron). Falló solo `outbox == antes + 1`. **Causa no determinada**: sospecha (hipótesis) de que E4, ejecutada justo antes, dejaba pendientes que se vaciaron durante los 75 s y falsearon el conteo. Se parchó la prueba (espera `outbox = 0` antes de medir e imprime los valores); falta **re-ejecutar E6** para confirmar. |
+| Observado | **PASS** (2.ª corrida): 26 reintentos en 75 s, espera máxima 6,87 s (≤ tope 8 s), mensaje entregado una sola vez. La 1.ª corrida falló solo en la aserción `outbox == antes + 1` (21 reintentos, 7,68 s). Se parchó la prueba (espera `outbox = 0` antes de medir) y al repetirla pasó, lo que es coherente con que el fallo fuera de la prueba y no del servidor; la causa exacta del primer fallo no se verificó. |
 | Aprobado / fallo | Aprobado: lo anterior. Fallo: espera > tope o mensaje descartado. |
 | Libro | 27.2.1 (p. 256). |
 
@@ -494,7 +493,7 @@ B2/C1 existen para confirmar el comportamiento en el sistema real.
 | Precondiciones | Laboratorio limpio. Anota la versión de Docker y el sistema anfitrión. |
 | Pasos | **Memoria:** `docker update --memory 64m --memory-swap 64m <contenedor server-a>` y repetir E2 (ráfaga). **Descriptores:** `docker run --ulimit nofile=64 …` (o `ulimit -n 64` dentro del contenedor) y repetir E4. **Disco lleno:** *solo en una máquina virtual o un volumen aparte*: llenar el volumen de `redis-a` y enviar un mensaje; **no** hacerlo en tu equipo de trabajo. |
 | Esperado (hipótesis) | Con poca memoria, el servidor o Redis se reinician (OOM) y se recuperan; con pocos descriptores aparecen errores de conexión; con el disco lleno, Redis rechaza escrituras y el servidor responde 5xx. Nada de esto está verificado. |
-| Observado | Manual, no ejecutada. |
+| Observado | **Memoria (INFO, simulado):** con 32 MiB `server-a` **no arranca** (`OOMKilled=true`, exit 137, `reinicios=0`: no se reinicia solo porque el compose no define `restart`). Con 48 MiB también terminó con exit 137 a los pocos segundos (no se verificó `OOMKilled`). Con 64 MiB arranca y la ráfaga de 10 000 (E2) pasó: 0 errores, 16,7 s, convergencia 39,09 s. En reposo el servidor usa ≈ 43 MiB: el mínimo está entre 48 y 64 MiB. **Descriptores:** la corrida de E4 con `nofile=64` terminó en ERROR (`localhost:8000 no responde /api/status`): no hay dato válido; falta repetirla verificando antes que el servidor esté arriba. **Disco lleno:** no ejecutada. |
 | Aprobado / fallo | INFO: documentar qué falla y cómo se manifiesta (logs). |
 | Libro | Cap. 27 (solo como contexto). |
 
@@ -535,7 +534,7 @@ B2/C1 existen para confirmar el comportamiento en el sistema real.
 | Precondiciones | Repo confirmado en git. Idealmente otro equipo o una VM sin imágenes previas. |
 | Pasos | `bash tests/clean_clone.sh` (**manual**; anota el resultado). |
 | Esperado (hipótesis) | Levanta con `docker compose up --build -d` y responde `/fed/health`. |
-| Observado | Manual (`tests/clean_clone.sh`), no ejecutada. |
+| Observado | **PASS.** Clon limpio desde git, `docker compose -f docker-compose.local.yml up --build -d`: los 5 contenedores arriba (redis sanos) y `GET /fed/health` respondió `{"server":"gSPAa","lamport":0}`. Sin pasos manuales. |
 | Aprobado / fallo | Aprobado: sin pasos extra. Anotar cualquier paso manual que haya hecho falta. |
 | Libro | — |
 
@@ -638,6 +637,8 @@ Cambio de planes: no hay sesión de clase. Se simula con 4 grupos que ejecutan *
 docker compose -f docker-compose.sesion.yml up --build -d
 python tests/sesion_local.py        # escribe docs/BITACORA.md
 ```
+**Resultado (central simulado, 4 grupos con nuestro servidor):** prueba 1 PASS (convergencia en 0,6 s, mismo orden en los 4) y prueba 2 PASS en los 4 turnos (recuperación 0,6–1,1 s, sin duplicados almacenados). Una primera corrida falló la prueba 1 y destapó un defecto real (ver tabla de límites), ya corregido y repetido. Detalle en `docs/BITACORA.md`.
+
 Ejecuta las dos pruebas de la sección 7 del enunciado: **(1)** conversación global (4 grupos × 10 mensajes, mismo orden en todos) y **(2)** caída y recuperación por turnos de cada grupo, sin duplicados. Esto prueba que *nuestro código* converge; **no** prueba interoperabilidad con servidores de terceros. La bitácora se completa a mano (qué funcionó, qué falló, hallazgos).
 
 
@@ -651,6 +652,7 @@ Ejecuta las dos pruebas de la sección 7 del enunciado: **(1)** conversación gl
 | Pérdida en SIGKILL (D3) | **No observada**: 0 de unos 3 700 confirmados en 4 corridas | Un `SIGKILL` del proceso no suele perder lo ya confirmado; el riesgo está en caídas del sistema (hipótesis). Además, lo enviado al central se recupera por `/history` | `appendfsync always` si se exige durabilidad ante caída del sistema |
 | Detector de fallos (D8) | Falso positivo con 2,5 s de latencia (sin él con ≤ 1,5 s) | Un detector perfecto es imposible; el timeout de `/health` es 2 s | Afinar timeout e intentos; reintentar con sondas en vez de pausar el emisor |
 | Reinicio rápido del central (sesión local, prueba 1) | Un servidor perdió 30 de 40 mensajes: el central se reinició y borró su registro; el servidor solo vio 1 fallo de salud (< K=3) y no recuperó historial hasta reiniciar | La recuperación solo se disparaba al declarar el central caído o al arrancar | Corregido: tras cualquier fallo de salud seguido de éxito se re-registra y sincroniza. **Sigue abierto**: si el central se reinicia entre dos sondas (2 s) sin ningún fallo visible, se detecta hasta la renovación (≤ 30 s) y no se recupera historial |
+| Memoria mínima (E7) | `server-a` no arranca con 32 MiB y con 48 MiB sale con 137; arranca con 64 MiB | Uso en reposo ≈ 43 MiB | Fijar un límite ≥ 128 MiB y añadir `restart: unless-stopped` (hoy un OOM deja el servidor caído) |
 | Autenticación de `/fed/*` (G3) | Cualquiera puede inyectar mensajes con cualquier `origin` (**verificado en G3**: 200) | El protocolo no la define | Documentar como limitación; no inventar autenticación |
 | Rendimiento (E1/E2/E3) | A 1000 msg/s pedidos se logran 653,5; con 10 000 mensajes la entrega al central va a ≈ 238 msg/s y tarda ≈ 38 s en converger (contra el central **simulado**) | Sospecha (no aislada): un solo hilo emisor, un POST a la vez | Emisor concurrente; medir variando hilos |
 | Historial grande (E5) | 50 000 mensajes: 0,92 s de descarga (8,89 MB) y 17,2 s de recuperación tras reiniciar | `since=0` descarga todo en cada recuperación | Usar `since` con el último lamport (pendiente de la especificación) |
