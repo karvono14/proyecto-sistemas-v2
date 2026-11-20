@@ -493,7 +493,7 @@ B2/C1 existen para confirmar el comportamiento en el sistema real.
 | Precondiciones | Laboratorio limpio. Anota la versión de Docker y el sistema anfitrión. |
 | Pasos | **Memoria:** `docker update --memory 64m --memory-swap 64m <contenedor server-a>` y repetir E2 (ráfaga). **Descriptores:** `docker run --ulimit nofile=64 …` (o `ulimit -n 64` dentro del contenedor) y repetir E4. **Disco lleno:** *solo en una máquina virtual o un volumen aparte*: llenar el volumen de `redis-a` y enviar un mensaje; **no** hacerlo en tu equipo de trabajo. |
 | Esperado (hipótesis) | Con poca memoria, el servidor o Redis se reinician (OOM) y se recuperan; con pocos descriptores aparecen errores de conexión; con el disco lleno, Redis rechaza escrituras y el servidor responde 5xx. Nada de esto está verificado. |
-| Observado | **Memoria (INFO, simulado):** con 32 MiB `server-a` **no arranca** (`OOMKilled=true`, exit 137, `reinicios=0`: no se reinicia solo porque el compose no define `restart`). Con 48 MiB también terminó con exit 137 a los pocos segundos (no se verificó `OOMKilled`). Con 64 MiB arranca y la ráfaga de 10 000 (E2) pasó: 0 errores, 16,7 s, convergencia 39,09 s. En reposo el servidor usa ≈ 43 MiB: el mínimo está entre 48 y 64 MiB. **Descriptores:** la corrida de E4 con `nofile=64` terminó en ERROR (`localhost:8000 no responde /api/status`): no hay dato válido; falta repetirla verificando antes que el servidor esté arriba. **Disco lleno:** no ejecutada. |
+| Observado | **Memoria (INFO, simulado):** con 32 MiB `server-a` **no arranca** (`OOMKilled=true`, exit 137, `reinicios=0`: no se reinicia solo porque el compose no define `restart`). Con 48 MiB también terminó con exit 137 a los pocos segundos (no se verificó `OOMKilled`). Con 64 MiB arranca y la ráfaga de 10 000 (E2) pasó: 0 errores, 16,7 s, convergencia 39,09 s. En reposo el servidor usa ≈ 43 MiB: el mínimo está entre 48 y 64 MiB. **Descriptores: sin resultado válido.** E4 dio INFO sin errores (p95 162,8 ms) en una corrida cuyo límite no se verificó (con `nofile=64` se esperaban errores, así que probablemente no estaba aplicado), y otra, tras recrear `server-a` con el override, terminó en ERROR (`localhost:8000 no responde /api/status`) sin que se haya visto el log. No se puede afirmar qué ocurre con 64 descriptores. **Disco lleno:** no ejecutada. |
 | Aprobado / fallo | INFO: documentar qué falla y cómo se manifiesta (logs). |
 | Libro | Cap. 27 (solo como contexto). |
 
@@ -522,7 +522,7 @@ B2/C1 existen para confirmar el comportamiento en el sistema real.
 | Precondiciones | Laboratorio en reposo. |
 | Pasos | `python tests/run_tests.py F2`. Reinicio del equipo (**manual**): reiniciar, `docker compose up -d`, repetir comprobaciones de F2. |
 | Esperado (hipótesis) | Todo sobrevive (volumen + AOF). |
-| Observado | **PASS** el `docker compose restart` (usuarios, historial y reloj sobreviven). El reinicio del equipo es manual y **no se ha hecho**. |
+| Observado | **PASS** el `docker compose restart` (usuarios, historial y reloj sobreviven). **Reinicio del equipo (manual): sin pérdida observada.** Antes: `lamport=1`, `messages=1`. Después: `lamport=746`, `messages=746` y `POST /api/users` del usuario previo → 409 (seguía existiendo). *Salvedad:* entre ambas lecturas se ejecutó E4 (500 mensajes), así que las cifras no son iguales; solo muestran que ni el reloj ni los mensajes retrocedieron. No se mostró la búsqueda del mensaje marcado. |
 | Aprobado / fallo | Aprobado: lo anterior. |
 | Libro | Cap. 6 (p. 57). |
 
